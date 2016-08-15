@@ -9,7 +9,7 @@ package com.sensepost.reDuh;
  *      Author:
  *	Glenn Wilkinson
  *	glenn@sensepost.com
- * 
+ *
  *      Bugfixes and enhancements:
  *      Ian de Villiers
  *      ian@sensepost.com
@@ -18,6 +18,7 @@ import java.io.*;
 import java.net.*;
 import java.net.URL;
 import java.util.*;
+import java.lang.*;
 import java.util.Properties;
 import javax.net.*;
 import javax.net.ssl.HostnameVerifier;
@@ -68,6 +69,27 @@ public class reDuhClient {
 
     }
 
+    private URL buildURL(String params) throws MalformedURLException {
+        String tmp_proto = the_url.getProtocol();
+        String tmp_host = the_url.getHost();
+        String tmp_file = the_url.getFile();
+        String tmp_query = the_url.getQuery();
+        int tmp_port = the_url.getPort();
+
+        if (tmp_port == -1) {
+            tmp_port = the_url.getDefaultPort();
+        }
+
+        if (tmp_query == null) {
+            tmp_query = "";
+        } else {
+            tmp_query += "&";
+        }
+
+        String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + tmp_query + params;
+        return new URL(tmp_url);
+    }
+
     //1. Poll httpDataBuffer for contents
     //2. Send contents to remote JSP
     class httpDataQueueManager extends Thread {
@@ -93,15 +115,7 @@ public class reDuhClient {
 
                         try {
                             String params = "action=newData&servicePort=" + remoteServicePort + "&targetHost=" + internalTarget + "&targetPort=" + internalPort + "&socketNumber=" + sockNum + "&data=" + data + "&sequenceNumber=" + seqNum;
-                            String tmp_proto = the_url.getProtocol();
-                            String tmp_host = the_url.getHost();
-                            int tmp_port = the_url.getPort();
-                            if (tmp_port == -1) {
-                                tmp_port = the_url.getDefaultPort();
-                            }
-                            String tmp_file = the_url.getFile();
-                            String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + params;
-                            URL new_url = new URL(tmp_url);
+                            URL new_url = buildURL(params);
                             BufferedReader httpResponseBuffer = HTTPER.speakToWebServer(new_url);
                             if (httpResponseBuffer != null) {
                                 String blah = null;
@@ -137,15 +151,7 @@ public class reDuhClient {
             String dataFromWebserver = null;
             try {
                 while (true) {
-                    String tmp_proto = the_url.getProtocol();
-                    String tmp_host = the_url.getHost();
-                    int tmp_port = the_url.getPort();
-                    if (tmp_port == -1) {
-                        tmp_port = the_url.getDefaultPort();
-                    }
-                    String tmp_file = the_url.getFile();
-                    String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + params;
-                    URL new_url = new URL(tmp_url);
+                    URL new_url = buildURL(params);
                     BufferedReader httpResponseBuffer = HTTPER.speakToWebServer(new_url);
                     if (httpResponseBuffer != null) {
                         dataFromWebserver = httpResponseBuffer.readLine();
@@ -200,15 +206,7 @@ public class reDuhClient {
             try {
                 String dataFromWebserver = null;
                 String params = "action=checkPort&port=" + _startPort;
-                String tmp_proto = the_url.getProtocol();
-                String tmp_host = the_url.getHost();
-                int tmp_port = the_url.getPort();
-                if (tmp_port == -1) {
-                    tmp_port = the_url.getDefaultPort();
-                }
-                String tmp_file = the_url.getFile();
-                String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + params;
-                URL new_url = new URL(tmp_url);
+                URL new_url = buildURL(params);
                 BufferedReader httpResponseBuffer = HTTPER.speakToWebServer(new_url);
                 try {
                     if (httpResponseBuffer != null) {
@@ -258,15 +256,7 @@ public class reDuhClient {
 
             try {
                 String params = "action=startReDuh&servicePort=" + remoteServicePort;
-                String tmp_proto = the_url.getProtocol();
-                String tmp_host = the_url.getHost();
-                int tmp_port = the_url.getPort();
-                if (tmp_port == -1) {
-                    tmp_port = the_url.getDefaultPort();
-                }
-                String tmp_file = the_url.getFile();
-                String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + params;
-                URL new_url = new URL(tmp_url);
+                URL new_url = buildURL(params);
                 if (the_url.getFile().toLowerCase().endsWith(".php")) {
                     System.out.println("[Info]*********************************************************");
                     System.out.println("[Info]***                  Using php                        ***");
@@ -381,15 +371,7 @@ public class reDuhClient {
                                 pr.println(" Sent kill signals....");
                                 try {
                                     String params = "action=killReDuh&servicePort=" + remoteServicePort;
-                                    String tmp_proto = the_url.getProtocol();
-                                    String tmp_host = the_url.getHost();
-                                    int tmp_port = the_url.getPort();
-                                    if (tmp_port == -1) {
-                                        tmp_port = the_url.getDefaultPort();
-                                    }
-                                    String tmp_file = the_url.getFile();
-                                    String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + params;
-                                    URL new_url = new URL(tmp_url);
+                                    URL new_url = buildURL(params);
                                     httpResponseBuffer = HTTPER.speakToWebServer(new_url);
                                     if (httpResponseBuffer != null) {
                                         dataFromWebserver = httpResponseBuffer.readLine();
@@ -448,7 +430,6 @@ public class reDuhClient {
         }
 
         public void run() {
-
             try {
                 srvr = new ServerSocket(listenPort);
                 boundSuccessfully = true;
@@ -473,8 +454,19 @@ public class reDuhClient {
         }
 
         public boolean boundSuccessfully() {
-            while (!triedToBind) {
+            int counter = 0;
+
+            try {
+                while (!triedToBind) {
+                    if (counter++ > 10) {
+                        break;
+                    }
+                    Thread.sleep(200);
+                }
+            } catch (InterruptedException e) {
+                System.out.println("[Warning]Loop counter exceeded.");
             }
+
             return boundSuccessfully;
         }
 
@@ -528,15 +520,7 @@ public class reDuhClient {
             inboundData.put(remoteTarget + ":" + remotePort + ":" + newSockNum, new LinkedList<String>());
             try {
                 String params = "action=createSocket&servicePort=" + remoteServicePort + "&socketNumber=" + newSockNum + "&targetHost=" + remoteTarget + "&targetPort=" + remotePort;
-                String tmp_proto = the_url.getProtocol();
-                String tmp_host = the_url.getHost();
-                int tmp_port = the_url.getPort();
-                if (tmp_port == -1) {
-                    tmp_port = the_url.getDefaultPort();
-                }
-                String tmp_file = the_url.getFile();
-                String tmp_url = tmp_proto + "://" + tmp_host + ":" + tmp_port + tmp_file + "?" + params;
-                URL new_url = new URL(tmp_url);
+                URL new_url = buildURL(params);
                 String dataFromWebserver = null;
                 BufferedReader httpResponseBuffer = HTTPER.speakToWebServer(new_url);
                 if (httpResponseBuffer != null) {
