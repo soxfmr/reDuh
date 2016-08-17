@@ -677,12 +677,21 @@ public class reDuhClient {
 
     static class HTTPER {
 
+        private static Proxy proxy;
+
+        public static void setupProxy(Proxy proxy) {
+            HTTPER.proxy = proxy;
+        }
+
         static public BufferedReader speakToWebServer(URL _url) {
             URL the_url = _url;
             BufferedReader webServerIn = null;
 
             try {
-                webServerIn = new BufferedReader(new InputStreamReader(the_url.openStream()));
+                URLConnection conn = (URLConnection) the_url.openConnection(proxy);
+                conn.setDoInput(true);
+                conn.setDoOutput(true);
+                webServerIn = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             } catch (Exception e) {
                 System.out.println("[Error]Error getting page.");
                 System.out.println("[Exception]" + e.toString().replaceAll("\n", "").replaceAll("\r", ""));
@@ -696,7 +705,7 @@ public class reDuhClient {
         String my_url = "";
         String the_prox = "";
         String ProxHost = "";
-        String ProxPort = "";
+        int ProxPort = -1;
 
         String sz_use = "Usage: java reDuhClient [URL-to-reDuh] <proxy-user:proxy-pass>@<proxy-host:proxy-port>\r\n\r\n";
         sz_use += "e.g. (HTTP) : java reDuhClient http://www.compromised.com/reDuh.jsp\r\n";
@@ -724,7 +733,7 @@ public class reDuhClient {
                 System.exit(1);
             } else {
                 try {
-                    int i = Integer.parseInt(tmp[1]);
+                    ProxPort = Integer.parseInt(tmp[1]);
                 } catch (Exception e) {
                     System.out.println(sz_use);
                     System.out.println("\r\n");
@@ -732,19 +741,20 @@ public class reDuhClient {
                     System.exit(1);
                 }
                 ProxHost = tmp[0];
-                ProxPort = tmp[1];
                 System.out.println("[Info]Using Proxy: " + ProxHost + ":" + ProxPort);
             }
         }
         // Set proxy server settings
         if (ProxHost.compareTo("") != 0) {
-            Properties systemSettings = System.getProperties();
+            /*Properties systemSettings = System.getProperties();
             systemSettings.put("http.proxyHost", ProxHost);
             systemSettings.put("http.proxyPort", ProxPort);
             systemSettings.put("https.proxyHost", ProxHost);
             systemSettings.put("https.proxyPort", ProxPort);
             systemSettings.put("proxySet", "true");
-            System.setProperties(systemSettings);
+            System.setProperties(systemSettings);*/
+            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(ProxHost, ProxPort));
+            HTTPER.setupProxy(proxy);
         }
         // Now, we parse the URL.
         try {
