@@ -688,7 +688,7 @@ public class reDuhClient {
             BufferedReader webServerIn = null;
 
             try {
-                URLConnection conn = (URLConnection) the_url.openConnection(proxy);
+                URLConnection conn = (URLConnection) proxy != null ? the_url.openConnection(proxy) : the_url.openConnection();
                 conn.setDoInput(true);
                 conn.setDoOutput(true);
                 webServerIn = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -724,7 +724,7 @@ public class reDuhClient {
             the_prox = args[1];
         }
         // Now, we format the proxy stuff if specified.
-        if (the_prox.compareTo("") != 0) {
+        if (the_prox.trim().compareTo("") != 0) {
             String[] tmp = the_prox.split(":");
             if (tmp.length < 2) {
                 System.out.println(sz_use);
@@ -754,7 +754,9 @@ public class reDuhClient {
             systemSettings.put("proxySet", "true");
             System.setProperties(systemSettings);*/
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(ProxHost, ProxPort));
-            HTTPER.setupProxy(proxy);
+            if (proxy != null) {
+                HTTPER.setupProxy(proxy);
+            }
         }
         // Now, we parse the URL.
         try {
